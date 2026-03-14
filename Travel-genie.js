@@ -564,26 +564,64 @@ document.addEventListener('DOMContentLoaded', () => {
         quickRepliesContainer.className = isInitial ? 'd-flex flex-column align-items-center gap-2 overflow-auto mt-2 w-100 ms-auto me-auto mb-3' : 'd-flex flex-wrap gap-2 mt-2 w-100 align-items-start mb-3';
 
         if (isInitial) {
-            quickRepliesContainer.className = 'd-flex flex-column align-items-center gap-3 overflow-visible py-2 mt-2 w-100 mb-3';
-            const emojis = ['💰', '🏖️', '👨‍👩‍👧‍👦', '🎒', '✈️'];
-            const colors = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899']; // Green, Blue, Orange, Purple, Pink
+            quickRepliesContainer.className = 'd-flex flex-column align-items-center gap-2 overflow-visible py-2 w-100 mb-3';
+            const emojis = ['✨', '🏝️', '🎒', '🗺️', '✈️'];
+            const gradients = [
+                'linear-gradient(135deg, #10b981 0%, #059669 100%)', // Emerald Theme
+                'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', // Deep Blue
+                'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', // Amber
+                'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', // Violet
+                'linear-gradient(135deg, #ec4899 0%, #be185d 100%)'  // Pink
+            ];
             suggestions.forEach((suggestion, i) => {
-                const color = colors[i % colors.length];
+                const gradient = gradients[i % gradients.length];
                 const btn = document.createElement('button');
-                btn.className = 'btn bg-white border-0 rounded-pill shadow-sm text-start py-2 px-3 quick-reply fw-medium d-flex align-items-center gap-3 transition-hover';
-                // explicit width ensures all cards perfectly align their edges 
+                btn.className = 'btn border-0 rounded-4 shadow-sm text-start p-3 quick-reply fw-medium d-flex align-items-center gap-3 position-relative overflow-hidden';
                 btn.style.width = '100%';
-                btn.style.maxWidth = '280px';
+                btn.style.maxWidth = '300px';
+                btn.style.background = '#ffffff';
+                btn.style.border = '1px solid #f1f5f9';
+                btn.style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
                 btn.setAttribute('data-value', suggestion);
                 btn.innerHTML = `
-                    <div class="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0" style="width: 36px; height: 36px; background-color: ${color}20;">
-                        <span style="font-size: 1.1rem;">${emojis[i % emojis.length]}</span>
+                    <div class="position-absolute top-0 start-0 w-100 h-100 bg-hover-layer" style="background: ${gradient}; opacity: 0; z-index: 0; transition: opacity 0.3s ease;"></div>
+                    <div class="d-flex align-items-center justify-content-center rounded-circle flex-shrink-0 position-relative shadow-sm" style="width: 44px; height: 44px; background: ${gradient}; z-index: 1;">
+                        <span style="font-size: 1.3rem; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));">${emojis[i % emojis.length]}</span>
                     </div>
-                    <span class="text-dark fw-semibold" style="font-size: 0.95rem; flex-grow: 1;">${suggestion}</span>
-                    <div class="d-flex align-items-center justify-content-center bg-light rounded-circle" style="width: 24px; height: 24px;">
-                        <span class="material-icons text-muted" style="font-size: 14px;">chevron_right</span>
+                    <span class="text-dark fw-bold position-relative suggestion-text" style="font-size: 0.95rem; flex-grow: 1; z-index: 1; letter-spacing: 0.2px; transition: color 0.3s ease;">${suggestion}</span>
+                    <div class="d-flex align-items-center justify-content-center bg-light rounded-circle position-relative icon-wrapper" style="width: 30px; height: 30px; z-index: 1; transition: all 0.3s ease;">
+                        <span class="material-icons text-secondary position-relative arrow-icon" style="font-size: 18px; transition: color 0.3s ease;">east</span>
                     </div>
                 `;
+                
+                // Add explicit hover event listeners because inline stylesheet scopes can be messy in injected HTML
+                btn.addEventListener('mouseenter', () => {
+                    btn.style.transform = 'translateY(-3px)';
+                    btn.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.15)';
+                    btn.style.borderColor = '#10b981';
+                    btn.querySelector('.bg-hover-layer').style.opacity = '0.04';
+                    btn.querySelector('.suggestion-text').style.color = '#10b981';
+                    btn.querySelector('.suggestion-text').classList.remove('text-dark');
+                    btn.querySelector('.icon-wrapper').style.background = '#10b981';
+                    btn.querySelector('.icon-wrapper').classList.remove('bg-light');
+                    btn.querySelector('.icon-wrapper').style.transform = 'translateX(2px)';
+                    btn.querySelector('.arrow-icon').style.color = 'white';
+                    btn.querySelector('.arrow-icon').classList.remove('text-secondary');
+                });
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.transform = 'translateY(0)';
+                    btn.style.boxShadow = '';
+                    btn.style.borderColor = '#f1f5f9';
+                    btn.querySelector('.bg-hover-layer').style.opacity = '0';
+                    btn.querySelector('.suggestion-text').style.color = '';
+                    btn.querySelector('.suggestion-text').classList.add('text-dark');
+                    btn.querySelector('.icon-wrapper').style.background = '';
+                    btn.querySelector('.icon-wrapper').classList.add('bg-light');
+                    btn.querySelector('.icon-wrapper').style.transform = 'translateX(0)';
+                    btn.querySelector('.arrow-icon').style.color = '';
+                    btn.querySelector('.arrow-icon').classList.add('text-secondary');
+                });
+
                 quickRepliesContainer.appendChild(btn);
             });
         } else {
