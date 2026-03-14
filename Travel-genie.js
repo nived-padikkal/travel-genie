@@ -22,7 +22,6 @@ document.addEventListener('DOMContentLoaded', () => {
         <circle cx="32" cy="20" r="4" fill="#EF4444"/>
         <path d="M32 12V4" stroke="#FBBF24" stroke-width="3" stroke-linecap="round"/>
         <path d="M12 30H8C6.89543 30 6 30.8954 6 32V38C6 39.1046 6.89543 40 8 40H12" fill="#e2e8f0"/>
-        <path d="M52 30H56C57.1046 30 58 30.8954 58 32V38C58 39.1046 57.1046 40 56 40H52" fill="#e2e8f0"/>
     </svg>`;
 
     // Inject Travel Genie Styles (Self-contained widget scoped styles)
@@ -572,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="message-bubble bg-white p-2 text-dark rounded-3 shadow-sm border mt-1 d-flex flex-column align-items-center gap-2" style="max-width: 80%; border-top-left-radius: 0 !important; animation: fadeIn 0.3s ease-in-out;">
                 <span class="small text-muted w-100 fw-medium">Pick travel date</span>
-                <input type="date" class="form-control form-control-sm chat-date-picker empty border-primary text-primary fw-medium" data-placeholder="Select date" min="${today}" style="box-shadow: none;">
+                <input type="date" class="form-control form-control-sm chat-date-picker empty border-primary text-primary fw-medium text-center" data-placeholder="Select date" min="${today}" style="box-shadow: none; cursor: pointer; background-color: #f8fafc; min-width: 150px;">
             </div>
         `;
 
