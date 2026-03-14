@@ -5,6 +5,8 @@ import os
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from typing import Any, Dict
+import re
+import csv
 
 load_dotenv()
 
@@ -23,18 +25,29 @@ class ChatRequest(BaseModel):
     language: str
     region: str = ""
 
+PACKAGES_DB = {}
+csv_path = os.path.join(os.path.dirname(__file__), "packages.csv")
+try:
+    with open(csv_path, mode="r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            PACKAGES_DB[row["id"]] = {
+                "name": row["name"],
+                "days": row["days"],
+                "price": row["price"],
+                "image": row["image"]
+            }
+except Exception as e:
+    print(f"Error loading packages.csv: {e}")
+
 def get_system_instruction(lang: str, region: str) -> str:
     location_context = f"\nThe user is currently browsing from {region}. You can use this to politely recommend it as their departure city." if region else ""
+    packages_list = "\n".join([f"{pid}. {info['name']} | ₹{int(info['price']):,} per person" for pid, info in PACKAGES_DB.items()])
+    
     return f"""You are Travel Genie, an AI travel assistant for Omega, a DOMESTIC travel agency focused explicitly on trips WITHIN INDIA.{location_context}
 
 AVAILABLE PACKAGES:
-1. Kerala - Quick Kochi | 4 days | ₹13,400 per person | Image: https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&q=80&w=800
-2. Hills of Kerala | 4 days | ₹16,320 per person | Image: https://images.unsplash.com/photo-1582560475093-ba66accbc424?auto=format&fit=crop&q=80&w=800
-3. Kerala - Munnar Calling | 4 days | ₹16,470 per person | Image: https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&q=80&w=800
-4. Simply Kerala | 4 days | ₹17,020 per person | Image: https://images.unsplash.com/photo-1605538883669-825c5f2b9b0c?auto=format&fit=crop&q=80&w=800
-5. Goa Beach Tour | 3 days | ₹11,999 per person | Image: https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&q=80&w=800
-6. Manali Snow Trip | 5 days | ₹14,999 per person | Image: https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&q=80&w=800
-7. Jaipur Heritage Tour | 4 days | ₹9,999 per person | Image: https://images.unsplash.com/photo-1477587458883-47145ed94245?auto=format&fit=crop&q=80&w=800
+{packages_list}
 
 CONVERSATION FLOW:
 You must guide users step-by-step to find travel packages. Collect these details sequentially:
@@ -59,23 +72,11 @@ RULES:
 WHEN ALL DETAILS ARE COLLECTED:
 Once you have collected all 6 details, you must stop asking questions and recommend a MAXIMUM OF 2 packages from the AVAILABLE PACKAGES list that somewhat fit their destination and budget.
 If their budget is too low, state: "Note: None of the packages exactly match your budget, but here are the closest options."
-You must output the recommended packages using EXACTLY this raw HTML structure below. Do not wrap it in markdown HTML blocks. Output the raw HTML directly in the message:
+You must output the recommended packages using EXACTLY this format, providing ONLY the ID of the package:
+[[PACKAGE: ID]]
 
-<div class="d-flex overflow-auto pb-3 pt-2 px-1" style="scrollbar-width: none; gap: 1rem;">
-  <div class="card shadow border-0 overflow-hidden flex-shrink-0 position-relative transition-hover" style="width: 250px; border-radius: 16px; background: #fff;">
-    <div class="position-absolute top-0 end-0 m-2 px-2 py-1 bg-white rounded-pill shadow-sm small fw-bold text-success" style="z-index: 2; font-size: 0.75rem;"><span class="material-icons align-middle text-warning" style="font-size: 14px;">star</span> 4.8</div>
-    <div style="height: 160px; overflow: hidden;"><img src="IMAGE URL HERE" class="card-img-top w-100 h-100" alt="PACKAGE NAME" style="object-fit: cover; transition: transform 0.3s ease;"></div>
-    <div class="card-body p-3 d-flex flex-column border-top">
-      <h6 class="card-title fw-bold text-dark text-truncate mb-2 fs-6">PACKAGE NAME</h6>
-      <div class="d-flex align-items-center gap-2 mb-2">
-        <span class="badge bg-light text-secondary rounded-pill border fw-medium px-2 py-1 d-flex align-items-center gap-1"><span class="material-icons" style="font-size: 12px;">flight_takeoff</span> DAYS</span>
-      </div>
-      <p class="text-success fw-bold mb-3 fs-5 mt-1">₹PRICE <span class="text-muted small fw-normal d-block" style="font-size: 0.75rem; letter-spacing: 0;">per person</span></p>
-      <button class="btn w-100 btn-primary rounded-pill fw-semibold shadow-sm mt-auto" style="padding: 10px 0;">View Package</button>
-    </div>
-  </div>
-  <!-- Repeat card element for each matched package -->
-</div>
+Example:
+[[PACKAGE: 1]]
 
 Add [[SUGGESTION: Start Over]] at the end when showing packages."""
 
@@ -94,7 +95,7 @@ async def chat_proxy(request: ChatRequest):
         "contents": request.contents,
         "generationConfig": {
             "temperature": 0.7,
-            "maxOutputTokens": 4096
+            "maxOutputTokens": 1024
         }
     }
     
@@ -105,8 +106,26 @@ async def chat_proxy(request: ChatRequest):
                 json=gemini_request,
                 timeout=30.0
             )
-            response.raise_for_status()
-            return response.json()
         except httpx.HTTPError as e:
             # You can log the error details here
             raise HTTPException(status_code=500, detail=str(e))
+            
+        data = response.json()
+        
+        try:
+            # Intercept and append full details for frontend
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+            
+            def replace_pkg(match):
+                pkg_id = match.group(1).strip()
+                if pkg_id in PACKAGES_DB:
+                    p = PACKAGES_DB[pkg_id]
+                    return f"[[PACKAGE: {pkg_id} | {p['name']} | {p['days']} | {p['price']} | {p['image']}]]"
+                return match.group(0)
+                
+            new_text = re.sub(r'\[\[PACKAGE:\s*(\d+)\s*\]\]', replace_pkg, text)
+            data["candidates"][0]["content"]["parts"][0]["text"] = new_text
+        except Exception:
+            pass # ignore failure and pass original data through
+            
+        return data

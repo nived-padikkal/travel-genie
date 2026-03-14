@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <circle cx="32" cy="20" r="4" fill="#EF4444"/>
         <path d="M32 12V4" stroke="#FBBF24" stroke-width="3" stroke-linecap="round"/>
         <path d="M12 30H8C6.89543 30 6 30.8954 6 32V38C6 39.1046 6.89543 40 8 40H12" fill="#e2e8f0"/>
+        <path d="M52 30H56C57.1046 30 58 30.8954 58 32V38C58 39.1046 57.1046 40 56 40H52" fill="#e2e8f0"/>
     </svg>`;
 
     // Inject Travel Genie Styles (Self-contained widget scoped styles)
@@ -65,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .chat-date-picker.empty::before { content: attr(data-placeholder); color: #888; position: absolute; left: 10px; font-weight: 500; font-size: 0.9rem; pointer-events: none; }
         .chat-date-picker:focus.empty::before, .chat-date-picker:active.empty::before { display: none; }
         .chat-date-picker:focus.empty, .chat-date-picker:active.empty { color: inherit; }
+        @media (min-width: 768px) { .chat-date-picker.empty { color: inherit; } .chat-date-picker.empty::before { display: none; } }
         .chat-date-picker::-webkit-calendar-picker-indicator { cursor: pointer; filter: invert(0.5) sepia(1) saturate(5) hue-rotate(175deg); }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .lang-dropdown-menu { display: none; position: absolute; right: 0; top: 100%; margin-top: 5px; min-width: 140px; z-index: 1000; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; overflow: hidden; flex-direction: column; padding: 5px 0; }
@@ -457,11 +459,50 @@ document.addEventListener('DOMContentLoaded', () => {
             // Extract date picker boolean
             const needsDatePicker = botMessage.includes('[[DATE_PICKER]]');
 
-            // Strip suggestions and tokens from displayed text
+            // Extract packages
+            const packages = [];
+            const packageRegex = /\[\[PACKAGE:\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\]\]/gi;
+            let pkgMatch;
+            while ((pkgMatch = packageRegex.exec(botMessage)) !== null) {
+                packages.push({
+                    id: pkgMatch[1].trim(),
+                    name: pkgMatch[2].trim(),
+                    days: pkgMatch[3].trim(),
+                    price: pkgMatch[4].trim(),
+                    image: pkgMatch[5].trim()
+                });
+            }
+
+            // Strip suggestions, date picker and packages from displayed text
             let displayMessage = botMessage
                 .replace(/\[\[SUGGESTION:\s*(.*?)\]\]/gi, '')
                 .replace(/\[\[DATE_PICKER\]\]/gi, '')
+                .replace(/\[\[PACKAGE:\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\]\]/gi, '')
                 .trim();
+
+            if (packages.length > 0) {
+                let packageHtml = '<div class="d-flex overflow-auto pb-3 pt-2 px-1 mt-3" style="scrollbar-width: none; gap: 1rem;">';
+                packages.forEach(pkg => {
+                    let formattedPrice = pkg.price.replace('₹', '').replace(',', '').trim();
+                    // Basic format back to number with commas if valid
+                    let parsedPrice = parseInt(formattedPrice, 10);
+                    let finalPrice = isNaN(parsedPrice) ? pkg.price : parsedPrice.toLocaleString('en-IN');
+                
+                    packageHtml += '<div class="card shadow border-0 overflow-hidden flex-shrink-0 position-relative transition-hover" style="width: 250px; border-radius: 16px; background: #fff;">' +
+                        '<div class="position-absolute top-0 end-0 m-2 px-2 py-1 bg-white rounded-pill shadow-sm small fw-bold text-success" style="z-index: 2; font-size: 0.75rem;"><span class="material-icons align-middle text-warning" style="font-size: 14px;">star</span> 4.8</div>' +
+                        '<div style="height: 160px; overflow: hidden;"><img src="' + pkg.image + '" class="card-img-top w-100 h-100" alt="' + pkg.name + '" style="object-fit: cover; transition: transform 0.3s ease;"></div>' +
+                        '<div class="card-body p-3 d-flex flex-column border-top">' +
+                        '<h6 class="card-title fw-bold text-dark text-truncate mb-2 fs-6">' + pkg.name + '</h6>' +
+                        '<div class="d-flex align-items-center gap-2 mb-2">' +
+                        '<span class="badge bg-light text-secondary rounded-pill border fw-medium px-2 py-1 d-flex align-items-center gap-1"><span class="material-icons" style="font-size: 12px;">flight_takeoff</span> ' + pkg.days + ' DAYS</span>' +
+                        '</div>' +
+                        '<p class="text-success fw-bold mb-3 fs-5 mt-1">₹' + finalPrice + ' <span class="text-muted small fw-normal d-block" style="font-size: 0.75rem; letter-spacing: 0;">per person</span></p>' +
+                        '<button class="btn w-100 btn-primary rounded-pill fw-semibold shadow-sm mt-auto" style="padding: 10px 0;">View Package</button>' +
+                        '</div></div>';
+                });
+                packageHtml += '</div>';
+                displayMessage += packageHtml;
+            }
 
             addMessageToUI('model', displayMessage);
 
@@ -490,7 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function fetchGeminiResponse() {
-        const API_URL = `http://localhost:8000/api/chat`;
+        const API_URL = `http://192.168.180.244:8000/api/chat`;
 
         const requestBody = {
             contents: chatHistory,
