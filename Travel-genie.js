@@ -1,3 +1,31 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import { getAnalytics, isSupported as isAnalyticsSupported } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
+import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCbpIdqzaSdcOI6ab25xifKy9TjL3lhKb4",
+    authDomain: "trip-genie-490305.firebaseapp.com",
+    projectId: "trip-genie-490305",
+    storageBucket: "trip-genie-490305.firebasestorage.app",
+    messagingSenderId: "34042949621",
+    appId: "1:34042949621:web:16469186fc7dfcb4273abc",
+    measurementId: "G-6PL062VVV3"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const googleProvider = new GoogleAuthProvider();
+
+isAnalyticsSupported()
+    .then((supported) => {
+        if (supported) {
+            getAnalytics(firebaseApp);
+        }
+    })
+    .catch(() => {
+        // Analytics is optional for the chat widget.
+    });
+
 document.addEventListener('DOMContentLoaded', () => {
     const GENIE_BOT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" style="width: 100%; height: 100%;">
         <rect x="12" y="24" width="40" height="32" rx="12" fill="#10B981"/>
@@ -74,6 +102,27 @@ document.addEventListener('DOMContentLoaded', () => {
         .lang-item { display: flex; align-items: center; gap: 10px; padding: 10px 15px; background: white; border: none; width: 100%; text-align: left; cursor: pointer; font-size: 0.95rem; font-weight: 500; color: #1e293b; transition: background 0.2s; }
         .lang-item:hover { background: #f8fafc; color: #10b981; }
         .lang-item img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; }
+        .auth-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+        .auth-chip.signed-in { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+        .auth-chip.signed-out { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
+        .auth-btn { border-radius: 999px; padding: 8px 14px; font-size: 0.85rem; font-weight: 700; border: 1px solid #dbeafe; background: #eff6ff; color: #1d4ed8; transition: all 0.2s ease; white-space: nowrap; }
+        .auth-btn:hover { background: #dbeafe; }
+        .auth-btn.logout { border-color: #e2e8f0; background: #fff; color: #475569; }
+        .auth-btn.logout:hover { background: #f8fafc; }
+        
+        /* Sidebar CSS */
+        .sidebar-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease; }
+        .sidebar-overlay.show { display: block; opacity: 1; }
+        .chatbot-sidebar { position: absolute; top: 0; left: -300px; width: 300px; height: 100%; max-width: 80%; background: #fff; z-index: 1001; box-shadow: 2px 0 15px rgba(0,0,0,0.1); transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; }
+        .chatbot-sidebar.open { left: 0; }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+        .sidebar-content { padding: 20px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        .sidebar-item-btn { display: flex; align-items: center; gap: 12px; padding: 12px 15px; width: 100%; border: none; background: transparent; border-radius: 10px; color: #1e293b; font-weight: 500; font-size: 1rem; transition: background 0.2s, color 0.2s; text-align: left; }
+        .sidebar-item-btn:hover { background: #f1f5f9; color: #10b981; }
+        .sidebar-item-btn .material-icons { color: #64748b; font-size: 22px; transition: color 0.2s; }
+        .sidebar-item-btn:hover .material-icons { color: #10b981; }
+        .lang-selector-sidebar { border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+        .lang-selector-sidebar-header { padding: 12px 15px; background: #f8fafc; font-weight: 600; color: #475569; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0; }
         
         /* Safe scoped bootstrap overriding for text colors inside widget so hosts without it won't break */
         .chatbot-container .bg-primary { background-color: #10b981 !important; color: white !important; }
@@ -89,9 +138,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inject Travel Genie Widget HTML into the DOM
     const tgWrapper = document.createElement('div');
     tgWrapper.innerHTML = `
-        <div id="chatbot-container" class="chatbot-container shadow-lg d-none">
-            <div class="chatbot-header bg-white p-3 d-flex justify-content-between align-items-center shadow-sm" style="border-radius: 0; border-bottom: 1px solid #e2e8f0;">
+        <div id="chatbot-container" class="chatbot-container shadow-lg d-none overflow-hidden">
+            <div class="sidebar-overlay" id="sidebar-overlay"></div>
+            <div class="chatbot-sidebar" id="chatbot-sidebar">
+                <div class="sidebar-header">
+                    <h5 class="fw-bold m-0 d-flex align-items-center gap-2 text-dark"><span class="material-icons text-primary fs-3">account_circle</span> <span id="auth-status-chip-sidebar" class="fs-6 text-truncate" style="max-width: 150px;">Guest</span></h5>
+                    <button id="close-sidebar-btn" class="btn btn-sm btn-light p-1 rounded-circle d-flex align-items-center justify-content-center border" style="width: 30px; height: 30px;"><span class="material-icons text-secondary" style="font-size: 18px;">close</span></button>
+                </div>
+                <div class="sidebar-content">
+                    <button id="new-chat-btn" class="sidebar-item-btn shadow-sm" style="border: 1px solid #e2e8f0;">
+                        <span class="material-icons">add_box</span> New Chat
+                    </button>
+                    
+                    <div class="lang-selector-sidebar mt-2 shadow-sm">
+                        <div class="lang-selector-sidebar-header">
+                            <span class="material-icons text-primary">language</span> Language: <span id="lang-current-text-sidebar" class="text-primary fw-bold ms-auto">English</span>
+                        </div>
+                        <div class="d-flex flex-column bg-white p-1">
+                            <button class="lang-item-sidebar sidebar-item-btn py-2 px-3 rounded-2" data-lang="English">English</button>
+                            <button class="lang-item-sidebar sidebar-item-btn py-2 px-3 rounded-2" data-lang="Hindi">Hindi</button>
+                            <button class="lang-item-sidebar sidebar-item-btn py-2 px-3 rounded-2" data-lang="Malayalam">Malayalam</button>
+                            <button class="lang-item-sidebar sidebar-item-btn py-2 px-3 rounded-2" data-lang="Tamil">Tamil</button>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto">
+                        <button id="google-auth-btn-sidebar" type="button" class="btn btn-outline-primary w-100 rounded-pill fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2 py-2 mb-2">
+                            <span class="material-icons" id="auth-btn-icon">login</span> <span id="auth-btn-text">Sign in</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chatbot-header bg-white p-3 d-flex justify-content-between align-items-center shadow-sm position-relative z-1" style="border-radius: 0; border-bottom: 1px solid #e2e8f0;">
                 <div class="d-flex align-items-center gap-3">
+                    <button id="open-sidebar-btn" class="btn btn-sm btn-link p-0 text-decoration-none hover-opacity d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; border: none;"><span class="material-icons text-secondary transition-hover" style="font-size: 28px;">menu</span></button>
                     <div style="width: 40px; height: 40px; filter: drop-shadow(0 4px 6px rgba(16,185,129,0.3)); padding: 2px;">${GENIE_BOT_SVG}</div>
                     <div class="d-flex flex-column">
                         <span class="fw-bold fs-5 text-dark mb-0" style="line-height: 1.1; letter-spacing: -0.5px;">Travel Genie</span>
@@ -101,21 +182,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 </div>
-                <div class="d-flex gap-3 align-items-center">
-                    <div class="position-relative" id="lang-dropdown-container">
-                        <button id="lang-toggle-btn" class="btn btn-sm btn-light border d-flex align-items-center gap-2" style="border-radius: 8px; padding: 6px 10px; font-weight: 600; color: #1e293b; background: white;">
-                            <span class="material-icons text-primary" style="font-size: 18px;">language</span>
-                            <span id="lang-current-text">English</span>
-                            <span class="material-icons text-muted" style="font-size: 16px;">expand_more</span>
-                        </button>
-                        <div id="lang-dropdown-menu" class="lang-dropdown-menu">
-                            <button class="lang-item" data-lang="English">English</button>
-                            <button class="lang-item" data-lang="Hindi">Hindi</button>
-                            <button class="lang-item" data-lang="Malayalam">Malayalam</button>
-                            <button class="lang-item" data-lang="Tamil">Tamil</button>
-                        </div>
-                    </div>
-                    <button id="close-chat" class="btn btn-sm btn-light p-2 rounded-circle hover-opacity d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;"><span class="material-icons text-secondary" style="font-size: 20px;">close</span></button>
+                <div class="d-flex gap-2 align-items-center">
+                    <button id="close-chat" class="btn btn-sm btn-light p-2 rounded-circle hover-opacity d-flex align-items-center justify-content-center shadow-sm border" style="width: 38px; height: 38px;"><span class="material-icons text-secondary" style="font-size: 22px;">close</span></button>
                 </div>
             </div>
             <div id="chat-body" class="chatbot-body p-4 bg-light overflow-auto flex-grow-1 d-flex flex-column">
@@ -164,6 +232,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatInput = document.getElementById('chat-input');
     const chatBody = document.getElementById('chat-body');
     const voiceBtn = document.getElementById('voice-btn');
+    const googleAuthBtn = document.getElementById('google-auth-btn-sidebar');
+    const authStatusChip = document.getElementById('auth-status-chip-sidebar');
+    const openSidebarBtn = document.getElementById('open-sidebar-btn');
+    const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const chatbotSidebar = document.getElementById('chatbot-sidebar');
+    const newChatBtn = document.getElementById('new-chat-btn');
+    const langCurrentTextSidebar = document.getElementById('lang-current-text-sidebar');
+    const authBtnText = document.getElementById('auth-btn-text');
+    const authBtnIcon = document.getElementById('auth-btn-icon');
+
+    function openSidebar() {
+        sidebarOverlay.classList.add('show');
+        chatbotSidebar.classList.add('open');
+    }
+    
+    function closeSidebar() {
+        sidebarOverlay.classList.remove('show');
+        chatbotSidebar.classList.remove('open');
+    }
+
+    openSidebarBtn.addEventListener('click', openSidebar);
+    closeSidebarBtn.addEventListener('click', closeSidebar);
+    sidebarOverlay.addEventListener('click', closeSidebar);
 
     // Create quick replies container dynamically so it maps inside chatBody
     let quickRepliesContainer = document.createElement('div');
@@ -174,43 +266,65 @@ document.addEventListener('DOMContentLoaded', () => {
     let isChatOpen = false;
     let chatHistory = [];
     let currentChatLanguage = 'English';
+    let currentUser = null;
 
-    // Handle Custom Language Dropdown Logic
-    const langToggleBtn = document.getElementById('lang-toggle-btn');
-    const langDropdownMenu = document.getElementById('lang-dropdown-menu');
-    const langCurrentText = document.getElementById('lang-current-text');
+    updateComposerState(true); // Always enable composer
 
-    langToggleBtn.addEventListener('click', () => {
-        langDropdownMenu.classList.toggle('show');
+    onAuthStateChanged(auth, (user) => {
+        currentUser = user;
+        updateAuthUI(user);
+        updateUserGreeting(user);
     });
 
-    // Close dropdown on outside click
-    document.addEventListener('click', (e) => {
-        if (!langToggleBtn.contains(e.target) && !langDropdownMenu.contains(e.target)) {
-            langDropdownMenu.classList.remove('show');
+    googleAuthBtn.addEventListener('click', async () => {
+        googleAuthBtn.disabled = true;
+        try {
+            if (currentUser) {
+                await signOut(auth);
+            } else {
+                await signInWithPopup(auth, googleProvider);
+            }
+        } catch (error) {
+            console.error('Firebase auth error:', error);
+            addMessageToUI('model', 'Google sign-in failed. Please try again.');
+        } finally {
+            googleAuthBtn.disabled = false;
+            closeSidebar();
         }
     });
 
-    const langItems = document.querySelectorAll('.lang-item');
+    newChatBtn.addEventListener('click', () => {
+        chatHistory = [];
+        chatBody.innerHTML = '';
+        addMessageToUI('model', greetings[currentChatLanguage]);
+        updateQuickReplies(initialSuggestions[currentChatLanguage], true);
+        closeSidebar();
+    });
+
+    const langItems = document.querySelectorAll('.lang-item-sidebar');
     langItems.forEach(item => {
         item.addEventListener('click', (e) => {
             const lang = e.currentTarget.getAttribute('data-lang');
 
+            // Set active class visually
+            langItems.forEach(btn => btn.classList.remove('bg-light', 'text-primary', 'fw-bold'));
+            e.currentTarget.classList.add('bg-light', 'text-primary', 'fw-bold');
+
             if (currentChatLanguage !== lang) {
                 currentChatLanguage = lang;
-                langCurrentText.textContent = lang;
-                langDropdownMenu.classList.remove('show');
+                langCurrentTextSidebar.textContent = lang;
 
                 // Reset chat for new language greeting
                 chatHistory = [];
                 chatBody.innerHTML = '';
                 addMessageToUI('model', greetings[lang]);
                 updateQuickReplies(initialSuggestions[lang], true);
-            } else {
-                langDropdownMenu.classList.remove('show');
             }
+            closeSidebar();
         });
     });
+    // Set initial active
+    document.querySelector('.lang-item-sidebar[data-lang="English"]').classList.add('bg-light', 'text-primary', 'fw-bold');
 
     // Center Quick Replies Options initially if they were hardcoded
     quickRepliesContainer.classList.add('justify-content-center');
@@ -300,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (val.startsWith('Ask in ')) {
                 // Intercept dynamic translate suggestion button
                 const targetLang = val.replace('Ask in ', '').trim();
-                const matchedBtn = document.querySelector(`.lang-item[data-lang="${targetLang}"]`);
+                const matchedBtn = document.querySelector(`.lang-item-sidebar[data-lang="${targetLang}"]`);
                 if (matchedBtn) {
                     matchedBtn.click(); // Trigger native UI language switch visually
                 }
@@ -411,7 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 recognition.stop();
             } else {
                 const langMap = { 'English': 'en-US', 'Hindi': 'hi-IN', 'Malayalam': 'ml-IN', 'Tamil': 'ta-IN' };
-                recognition.lang = langMap[chatLanguage ? chatLanguage.value : 'English'] || 'en-US';
+                recognition.lang = langMap[currentChatLanguage] || 'en-US';
                 recognition.start();
                 isRecording = true;
                 voiceBtn.classList.add('recording');
@@ -424,6 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Form submission
     chatForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
         const message = chatInput.value.trim();
         if (!message) return;
 
@@ -732,6 +847,67 @@ document.addEventListener('DOMContentLoaded', () => {
     function removeTypingIndicator(id) {
         const el = document.getElementById(id);
         if (el) el.remove();
+    }
+
+    function updateComposerState(isEnabled) {
+        chatInput.disabled = !isEnabled;
+        chatInput.placeholder = 'Message Travel Genie...';
+
+        if (voiceBtn) {
+            voiceBtn.disabled = !isEnabled;
+            voiceBtn.style.opacity = isEnabled ? '1' : '0.5';
+            voiceBtn.style.cursor = isEnabled ? 'pointer' : 'not-allowed';
+        }
+    }
+
+    function updateAuthUI(user) {
+        if (user) {
+            const displayName = user.displayName || user.email || 'Traveler';
+            authStatusChip.textContent = displayName;
+            authStatusChip.classList.remove('text-muted');
+            authStatusChip.classList.add('text-primary');
+            authBtnText.textContent = 'Logout';
+            authBtnIcon.textContent = 'logout';
+            googleAuthBtn.classList.replace('btn-outline-primary', 'btn-outline-danger');
+            
+        } else {
+            authStatusChip.textContent = 'Guest';
+            authStatusChip.classList.add('text-muted');
+            authStatusChip.classList.remove('text-primary');
+            authBtnText.textContent = 'Sign in';
+            authBtnIcon.textContent = 'login';
+            googleAuthBtn.classList.replace('btn-outline-danger', 'btn-outline-primary');
+        }
+    }
+
+    function updateUserGreeting(user) {
+        let localizedSuffix = {
+            'English': userRegion ? ` from ${userRegion}` : '',
+            'Hindi': userRegion ? ` ${userRegion} से` : '',
+            'Malayalam': userRegion ? ` ${userRegion}-ൽ നിന്നുള്ള` : '',
+            'Tamil': userRegion ? ` ${userRegion}-லிருந்து` : ''
+        };
+
+        if (user) {
+            const firstName = (user.displayName || user.email || 'Traveler').split(' ')[0];
+            greetings['English'] = `Hello, ${firstName}! 👋 I'm Travel Genie, your AI travel assistant 🧞‍♂️. How can I help you find the best budget trips${localizedSuffix['English']} today? ✈️`;
+            greetings['Hindi'] = `नमस्ते, ${firstName}! 👋 मैं ट्रैवल जिनी हूँ, आपका AI ट्रैवल असिस्टेंट 🧞‍♂️। आज मैं आपको${localizedSuffix['Hindi']} सबसे अच्छे बजट ट्रिप खोजने में कैसे मदद कर सकता हूँ? ✈️`;
+            greetings['Malayalam'] = `നമസ്കാരം, ${firstName}! 👋 ഞാൻ ട്രാവൽ ജീനി, നിങ്ങളുടെ AI ട്രാവൽ അസിസ്റ്റന്റ് 🧞‍♂️.${localizedSuffix['Malayalam']} മികച്ച ബജറ്റ് യാത്രകൾ കണ്ടെത്താൻ ഇന്ന് ഞാൻ നിങ്ങളെ എങ്ങനെ സഹായിക്കും? ✈️`;
+            greetings['Tamil'] = `வணக்கம், ${firstName}! 👋 நான் டிராவல் ஜினி, உங்கள் AI பயண உதவியாளர் 🧞‍♂️.${localizedSuffix['Tamil']} சிறந்த பட்ஜெட் பயணங்களை கண்டறிய இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்? ✈️`;
+        } else {
+            greetings['English'] = `Hello! 👋 I'm Travel Genie, your AI travel assistant 🧞‍♂️. How can I help you find the best budget trips${localizedSuffix['English']} today? ✈️`;
+            greetings['Hindi'] = `नमस्ते! 👋 मैं ट्रैवल जिनी हूँ, आपका AI ट्रैवल असिस्टेंट 🧞‍♂️। आज मैं आपको${localizedSuffix['Hindi']} सबसे अच्छे बजट ट्रिप खोजने में कैसे मदद कर सकता हूँ? ✈️`;
+            greetings['Malayalam'] = `നമസ്കാരം! 👋 ഞാൻ ട്രാവൽ ജീനി, നിങ്ങളുടെ AI ട്രാവൽ അസിസ്റ്റന്റ് 🧞‍♂️.${localizedSuffix['Malayalam']} മികച്ച ബജറ്റ് യാത്രകൾ കണ്ടെത്താൻ ഇന്ന് ഞാൻ നിങ്ങളെ എങ്ങനെ സഹായിക്കും? ✈️`;
+            greetings['Tamil'] = `வணக்கம்! 👋 நான் டிராவல் ஜினி, உங்கள் AI பயண உதவியாளர் 🧞‍♂️.${localizedSuffix['Tamil']} சிறந்த பட்ஜெட் பயணங்களை கண்டறிய இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்? ✈️`;
+        }
+
+        // Update UI if still on first message
+        if (chatHistory.length === 0) {
+            const initMsg = document.getElementById('initial-greeting-msg');
+            if (initMsg) {
+                initMsg.innerHTML = greetings[currentChatLanguage];
+            }
+        }
     }
 
     function scrollToBottom() {
