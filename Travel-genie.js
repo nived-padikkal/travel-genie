@@ -116,13 +116,37 @@ document.addEventListener('DOMContentLoaded', () => {
         .chatbot-sidebar { position: absolute; top: 0; left: -300px; width: 300px; height: 100%; max-width: 80%; background: #fff; z-index: 1001; box-shadow: 2px 0 15px rgba(0,0,0,0.1); transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; }
         .chatbot-sidebar.open { left: 0; }
         .sidebar-header { padding: 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
-        .sidebar-content { padding: 20px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        .sidebar-content { padding: 20px; flex-grow: 1; overflow: hidden; display: flex; flex-direction: column; gap: 16px; }
         .sidebar-item-btn { display: flex; align-items: center; gap: 12px; padding: 12px 15px; width: 100%; border: none; background: transparent; border-radius: 10px; color: #1e293b; font-weight: 500; font-size: 1rem; transition: background 0.2s, color 0.2s; text-align: left; }
         .sidebar-item-btn:hover { background: #f1f5f9; color: #10b981; }
         .sidebar-item-btn .material-icons { color: #64748b; font-size: 22px; transition: color 0.2s; }
         .sidebar-item-btn:hover .material-icons { color: #10b981; }
-        .lang-selector-sidebar { border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
-        .lang-selector-sidebar-header { padding: 12px 15px; background: #f8fafc; font-weight: 600; color: #475569; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0; }
+        .lang-selector-sidebar { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; flex-shrink: 0; background: #fff; }
+        .lang-selector-sidebar-header { padding: 12px 15px; background: #f8fafc; font-weight: 600; color: #475569; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; cursor: pointer; user-select: none; }
+        .chatbot-title-wrap { min-width: 0; }
+        .chatbot-title-text { font-size: 1rem; font-weight: 700; color: #0f172a; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+        .chatbot-subtitle-text { font-size: 0.78rem; color: #64748b; font-weight: 500; }
+        .recent-chats-section { padding-top: 4px; display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+        .recent-chats-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .recent-chats-list { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; padding-right: 4px; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+        .recent-chat-row { position: relative; display: flex; align-items: center; border-radius: 12px; background: #fff; border: 1px solid #edf2f7; transition: all 0.2s ease; min-height: 46px; }
+        .recent-chat-row:hover { border-color: #dbeafe; background: #f8fafc; }
+        .recent-chat-row.active { background: #ecfdf5; border-color: #86efac; }
+        .recent-chat-row.reveal-delete { border-color: #fecaca; background: #fff1f2; }
+        .recent-chat-item { flex: 1 1 auto; min-width: 0; border: none; background: transparent; padding: 12px 14px; text-align: left; transition: all 0.2s ease; font-size: 0.9rem; font-weight: 600; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .recent-chat-row.active .recent-chat-item { color: #047857; }
+        .recent-chat-delete { width: 0; opacity: 0; overflow: hidden; border: none; background: transparent; color: #dc2626; align-self: stretch; transition: width 0.18s ease, opacity 0.18s ease, padding 0.18s ease; padding: 0; display: flex; align-items: center; justify-content: center; }
+        .recent-chat-row.reveal-delete .recent-chat-delete { width: 44px; opacity: 1; padding-right: 8px; }
+        .recent-chat-delete:hover { color: #991b1b; }
+        .recent-chat-empty { display: none; }
+        .sidebar-clear-btn { border: none; background: transparent; color: #ef4444; font-size: 0.78rem; font-weight: 700; padding: 0; }
+        .sidebar-clear-btn:hover { color: #b91c1c; }
+        .lang-selector-body { max-height: 220px; overflow: hidden; transition: max-height 0.25s ease; }
+        .lang-selector-sidebar.collapsed .lang-selector-body { max-height: 0; }
+        .lang-selector-sidebar.collapsed .lang-chevron { transform: rotate(-90deg); }
+        .lang-chevron { transition: transform 0.25s ease; }
+        .lang-selector-list { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: white; }
+        .lang-item-sidebar { justify-content: flex-start; border: 1px solid #e2e8f0; padding: 12px 14px; font-size: 0.95rem; border-radius: 12px; background: #fff; }
         
         /* Safe scoped bootstrap overriding for text colors inside widget so hosts without it won't break */
         .chatbot-container .bg-primary { background-color: #10b981 !important; color: white !important; }
@@ -149,16 +173,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button id="new-chat-btn" class="sidebar-item-btn shadow-sm" style="border: 1px solid #e2e8f0;">
                         <span class="material-icons">add_box</span> New Chat
                     </button>
-                    
-                    <div class="lang-selector-sidebar mt-2 shadow-sm">
-                        <div class="lang-selector-sidebar-header">
-                            <span class="material-icons text-primary">language</span> Language: <span id="lang-current-text-sidebar" class="text-primary fw-bold ms-auto">English</span>
+
+                    <div class="recent-chats-section shadow-sm">
+                        <div class="recent-chats-header">
+                            <div class="d-flex align-items-center gap-2 text-dark fw-semibold">
+                                <span class="material-icons text-primary" style="font-size: 20px;">history</span>
+                                <span>Recent chats</span>
+                            </div>
+                            <button id="clear-history-btn" type="button" class="sidebar-clear-btn">Clear all</button>
                         </div>
-                        <div class="d-flex flex-column bg-white p-1">
+                        <div id="recent-chats-list" class="recent-chats-list"></div>
+                    </div>
+                    
+                    <div id="lang-selector-sidebar" class="lang-selector-sidebar mt-2 shadow-sm collapsed">
+                        <div id="lang-selector-toggle" class="lang-selector-sidebar-header">
+                            <span class="material-icons text-primary">language</span> Language: <span id="lang-current-text-sidebar" class="text-primary fw-bold ms-auto">English</span>
+                            <span class="material-icons text-secondary lang-chevron" style="font-size: 20px;">expand_more</span>
+                        </div>
+                        <div class="lang-selector-body">
+                        <div class="lang-selector-list">
                             <button class="lang-item-sidebar sidebar-item-btn py-2 px-3 rounded-2" data-lang="English">English</button>
                             <button class="lang-item-sidebar sidebar-item-btn py-2 px-3 rounded-2" data-lang="Hindi">Hindi</button>
                             <button class="lang-item-sidebar sidebar-item-btn py-2 px-3 rounded-2" data-lang="Malayalam">Malayalam</button>
                             <button class="lang-item-sidebar sidebar-item-btn py-2 px-3 rounded-2" data-lang="Tamil">Tamil</button>
+                        </div>
                         </div>
                     </div>
 
@@ -174,11 +212,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="d-flex align-items-center gap-3">
                     <button id="open-sidebar-btn" class="btn btn-sm btn-link p-0 text-decoration-none hover-opacity d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; border: none;"><span class="material-icons text-secondary transition-hover" style="font-size: 28px;">menu</span></button>
                     <div style="width: 40px; height: 40px; filter: drop-shadow(0 4px 6px rgba(16,185,129,0.3)); padding: 2px;">${GENIE_BOT_SVG}</div>
-                    <div class="d-flex flex-column">
-                        <span class="fw-bold fs-5 text-dark mb-0" style="line-height: 1.1; letter-spacing: -0.5px;">Travel Genie</span>
-                        <div class="d-flex align-items-center gap-1 mt-1">
+                    <div class="d-flex flex-column chatbot-title-wrap">
+                        <span id="chat-title" class="chatbot-title-text">Travel Genie</span>
+                        <div class="d-flex align-items-center gap-2 mt-1">
                             <span style="width: 8px; height: 8px; background-color: #10b981; border-radius: 50%; display: inline-block;"></span>
-                            <span class="small text-muted" style="font-size: 0.75rem; font-weight: 500;">Online</span>
+                            <span id="chat-subtitle" class="chatbot-subtitle-text">Online</span>
                         </div>
                     </div>
                 </div>
@@ -242,6 +280,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const langCurrentTextSidebar = document.getElementById('lang-current-text-sidebar');
     const authBtnText = document.getElementById('auth-btn-text');
     const authBtnIcon = document.getElementById('auth-btn-icon');
+    const recentChatsList = document.getElementById('recent-chats-list');
+    const clearHistoryBtn = document.getElementById('clear-history-btn');
+    const chatTitle = document.getElementById('chat-title');
+    const chatSubtitle = document.getElementById('chat-subtitle');
+    const langSelectorSidebar = document.getElementById('lang-selector-sidebar');
+    const langSelectorToggle = document.getElementById('lang-selector-toggle');
 
     function openSidebar() {
         sidebarOverlay.classList.add('show');
@@ -267,6 +311,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let chatHistory = [];
     let currentChatLanguage = 'English';
     let currentUser = null;
+    let currentChatId = null;
+    let chatSessions = [];
+    let renderedMessages = [];
+    let activeQuickReplies = [];
+    let pendingDatePicker = false;
+    let isRestoringChat = false;
+    let recentChatLongPressTimer = null;
+    let longPressTargetChatId = null;
+    let deleteRevealChatId = null;
+    const CHAT_STORAGE_KEY = 'travel-genie.chatSessions.v1';
+    const MAX_SAVED_CHATS = 12;
 
     updateComposerState(true); // Always enable composer
 
@@ -281,6 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             if (currentUser) {
                 await signOut(auth);
+                clearAllChatsAndReset();
             } else {
                 await signInWithPopup(auth, googleProvider);
             }
@@ -293,41 +349,98 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const langItems = document.querySelectorAll('.lang-item-sidebar');
     newChatBtn.addEventListener('click', () => {
-        chatHistory = [];
-        chatBody.innerHTML = '';
-        addMessageToUI('model', greetings[currentChatLanguage]);
-        updateQuickReplies(initialSuggestions[currentChatLanguage], true);
-        closeSidebar();
+        startNewChat(currentChatLanguage);
     });
 
-    const langItems = document.querySelectorAll('.lang-item-sidebar');
     langItems.forEach(item => {
         item.addEventListener('click', (e) => {
             const lang = e.currentTarget.getAttribute('data-lang');
 
-            // Set active class visually
-            langItems.forEach(btn => btn.classList.remove('bg-light', 'text-primary', 'fw-bold'));
-            e.currentTarget.classList.add('bg-light', 'text-primary', 'fw-bold');
-
             if (currentChatLanguage !== lang) {
-                currentChatLanguage = lang;
-                langCurrentTextSidebar.textContent = lang;
-
-                // Reset chat for new language greeting
-                chatHistory = [];
-                chatBody.innerHTML = '';
-                addMessageToUI('model', greetings[lang]);
-                updateQuickReplies(initialSuggestions[lang], true);
+                startNewChat(lang);
+                return;
             }
+
             closeSidebar();
         });
     });
-    // Set initial active
-    document.querySelector('.lang-item-sidebar[data-lang="English"]').classList.add('bg-light', 'text-primary', 'fw-bold');
+    setActiveLanguageButton('English');
+    langSelectorToggle.addEventListener('click', () => {
+        langSelectorSidebar.classList.toggle('collapsed');
+    });
 
-    // Center Quick Replies Options initially if they were hardcoded
-    quickRepliesContainer.classList.add('justify-content-center');
+    clearHistoryBtn.addEventListener('click', () => {
+        clearAllChatsAndReset();
+    });
+
+    recentChatsList.addEventListener('click', (e) => {
+        const deleteButton = e.target.closest('[data-delete-chat-id]');
+        if (deleteButton) {
+            e.stopPropagation();
+            removeChatSession(deleteButton.getAttribute('data-delete-chat-id'));
+            return;
+        }
+
+        const chatCard = e.target.closest('.recent-chat-item[data-chat-id]');
+        if (!chatCard) {
+            return;
+        }
+        if (deleteRevealChatId && deleteRevealChatId === chatCard.getAttribute('data-chat-id')) {
+            hideRecentChatActions();
+            return;
+        }
+        switchToSession(chatCard.getAttribute('data-chat-id'));
+    });
+
+    recentChatsList.addEventListener('contextmenu', (e) => {
+        const row = e.target.closest('.recent-chat-row[data-chat-id]');
+        if (!row) {
+            return;
+        }
+        e.preventDefault();
+        deleteRevealChatId = row.getAttribute('data-chat-id');
+        renderRecentChats();
+    });
+
+    recentChatsList.addEventListener('mousedown', (e) => {
+        const row = e.target.closest('.recent-chat-row[data-chat-id]');
+        if (!row || e.button !== 0) {
+            return;
+        }
+        clearLongPressTimer();
+        longPressTargetChatId = row.getAttribute('data-chat-id');
+        recentChatLongPressTimer = setTimeout(() => {
+            deleteRevealChatId = longPressTargetChatId;
+            renderRecentChats();
+            clearLongPressTimer();
+        }, 550);
+    });
+
+    recentChatsList.addEventListener('touchstart', (e) => {
+        const row = e.target.closest('.recent-chat-row[data-chat-id]');
+        if (!row) {
+            return;
+        }
+        clearLongPressTimer();
+        longPressTargetChatId = row.getAttribute('data-chat-id');
+        recentChatLongPressTimer = setTimeout(() => {
+            deleteRevealChatId = longPressTargetChatId;
+            renderRecentChats();
+            clearLongPressTimer();
+        }, 550);
+    }, { passive: true });
+
+    ['mouseup', 'mouseleave', 'touchend', 'touchcancel', 'touchmove'].forEach((eventName) => {
+        recentChatsList.addEventListener(eventName, clearLongPressTimer, { passive: true });
+    });
+
+    document.addEventListener('click', (e) => {
+        if (deleteRevealChatId && !e.target.closest('.recent-chat-row[data-chat-id]')) {
+            hideRecentChatActions();
+        }
+    });
 
     const greetings = {
         'English': "Hello! 👋 I'm Travel Genie, your AI travel assistant 🧞‍♂️. How can I help you find the best budget trips today? ✈️",
@@ -342,6 +455,223 @@ document.addEventListener('DOMContentLoaded', () => {
         'Malayalam': ["ബഡ്ജറ്റ് യാത്രകൾ", "ബീച്ച് ഹോളിഡേ", "ഫാമിലി പാക്കേജുകൾ"],
         'Tamil': ["பட்ஜெட் பயணங்கள்", "கடற்கரை விடுமுறை", "குடும்பப் பேக்கேஜ்கள்"]
     };
+
+    function sanitizeChatTitle(title) {
+        return (title || 'New chat').replace(/\s+/g, ' ').trim().slice(0, 48) || 'New chat';
+    }
+
+    function createChatTitleFromMessage(message) {
+        const normalized = sanitizeChatTitle(message.replace(/\[\[.*?\]\]/g, ''));
+        return normalized.length > 32 ? `${normalized.slice(0, 32)}...` : normalized;
+    }
+
+    function getCurrentSubtitle() {
+        return chatHistory.length > 0 ? `Ready for follow-up in ${currentChatLanguage}` : 'Online';
+    }
+
+    function updateChatHeader() {
+        chatTitle.textContent = 'Travel Genie';
+        chatSubtitle.textContent = getCurrentSubtitle();
+    }
+
+    function setActiveLanguageButton(language) {
+        langItems.forEach((btn) => btn.classList.remove('bg-light', 'text-primary', 'fw-bold'));
+        const activeButton = document.querySelector(`.lang-item-sidebar[data-lang="${language}"]`);
+        if (activeButton) {
+            activeButton.classList.add('bg-light', 'text-primary', 'fw-bold');
+        }
+        langCurrentTextSidebar.textContent = language;
+    }
+
+    function createChatSession(language = currentChatLanguage) {
+        return {
+            id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            title: 'New chat',
+            language,
+            history: [],
+            messages: [{ sender: 'model', text: greetings[language] }],
+            quickReplies: [...initialSuggestions[language]],
+            pendingDatePicker: false,
+            updatedAt: Date.now()
+        };
+    }
+
+    function loadChatSessions() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(CHAT_STORAGE_KEY) || '[]');
+            if (!Array.isArray(saved)) {
+                return [];
+            }
+            return saved.filter((item) => item && item.id && Array.isArray(item.messages)).slice(0, MAX_SAVED_CHATS);
+        } catch (error) {
+            console.error('Failed to load saved chats:', error);
+            return [];
+        }
+    }
+
+    function saveChatSessions() {
+        try {
+            localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatSessions.slice(0, MAX_SAVED_CHATS)));
+        } catch (error) {
+            console.error('Failed to save chats:', error);
+        }
+    }
+
+    function hideRecentChatActions() {
+        deleteRevealChatId = null;
+        renderRecentChats();
+    }
+
+    function clearLongPressTimer() {
+        if (recentChatLongPressTimer) {
+            clearTimeout(recentChatLongPressTimer);
+            recentChatLongPressTimer = null;
+        }
+        longPressTargetChatId = null;
+    }
+
+    function removeChatSession(sessionId) {
+        const nextSessions = chatSessions.filter((item) => item.id !== sessionId);
+        if (nextSessions.length === chatSessions.length) {
+            return;
+        }
+
+        chatSessions = nextSessions;
+        deleteRevealChatId = null;
+
+        if (currentChatId === sessionId) {
+            saveChatSessions();
+            renderRecentChats();
+            if (chatSessions.length > 0) {
+                switchToSession(chatSessions[0].id);
+            } else {
+                startNewChat(currentChatLanguage);
+            }
+            return;
+        }
+
+        saveChatSessions();
+        renderRecentChats();
+    }
+
+    function clearAllChatsAndReset() {
+        chatSessions = [];
+        currentChatId = null;
+        deleteRevealChatId = null;
+        saveChatSessions();
+        renderRecentChats();
+        startNewChat(currentChatLanguage, false);
+    }
+
+    function renderRecentChats() {
+        if (!recentChatsList) {
+            return;
+        }
+
+        const recentSessions = [...chatSessions]
+            .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+            .slice(0, MAX_SAVED_CHATS);
+
+        if (recentSessions.length === 0) {
+            recentChatsList.innerHTML = '';
+            return;
+        }
+
+        recentChatsList.innerHTML = recentSessions.map((session) => `
+            <div class="recent-chat-row ${session.id === currentChatId ? 'active' : ''} ${deleteRevealChatId === session.id ? 'reveal-delete' : ''}" data-chat-id="${session.id}">
+                <button type="button" class="recent-chat-item" data-chat-id="${session.id}" title="${escapeHtml(session.title || 'New chat')}">${escapeHtml(session.title || 'New chat')}</button>
+                <button type="button" class="recent-chat-delete" data-delete-chat-id="${session.id}" aria-label="Delete chat">
+                    <span class="material-icons" style="font-size: 18px;">delete</span>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    function persistCurrentSession() {
+        if (isRestoringChat || !currentChatId) {
+            return;
+        }
+
+        const existingIndex = chatSessions.findIndex((item) => item.id === currentChatId);
+        const previous = existingIndex >= 0 ? chatSessions[existingIndex] : {};
+        const firstUserMessage = renderedMessages.find((item) => item.sender === 'user');
+        const nextSession = {
+            ...previous,
+            id: currentChatId,
+            title: firstUserMessage ? createChatTitleFromMessage(firstUserMessage.text) : (previous.title || 'New chat'),
+            language: currentChatLanguage,
+            history: chatHistory,
+            messages: renderedMessages,
+            quickReplies: activeQuickReplies,
+            pendingDatePicker,
+            updatedAt: Date.now()
+        };
+
+        if (existingIndex >= 0) {
+            chatSessions.splice(existingIndex, 1);
+        }
+        chatSessions.unshift(nextSession);
+        chatSessions = chatSessions.slice(0, MAX_SAVED_CHATS);
+        saveChatSessions();
+        updateChatHeader();
+        renderRecentChats();
+    }
+
+    function rebuildChatBody(session) {
+        isRestoringChat = true;
+        chatBody.innerHTML = '';
+        renderedMessages = [];
+        activeQuickReplies = [];
+        pendingDatePicker = false;
+
+        (session.messages || []).forEach((message) => {
+            addMessageToUI(message.sender, message.text);
+        });
+
+        if (session.pendingDatePicker) {
+            addDatePickerToUI();
+        }
+
+        if (Array.isArray(session.quickReplies) && session.quickReplies.length > 0) {
+            updateQuickReplies(session.quickReplies, session.history.length === 0);
+        } else {
+            updateQuickReplies(initialSuggestions[session.language] || initialSuggestions.English, session.history.length === 0);
+        }
+
+        isRestoringChat = false;
+        scrollToBottom();
+    }
+
+    function switchToSession(sessionId) {
+        const session = chatSessions.find((item) => item.id === sessionId);
+        if (!session) {
+            return;
+        }
+
+        currentChatId = session.id;
+        currentChatLanguage = session.language || 'English';
+        chatHistory = Array.isArray(session.history) ? [...session.history] : [];
+        setActiveLanguageButton(currentChatLanguage);
+        rebuildChatBody(session);
+        updateChatHeader();
+        renderRecentChats();
+        closeSidebar();
+    }
+
+    function startNewChat(language = currentChatLanguage, shouldPersist = true) {
+        currentChatLanguage = language;
+        setActiveLanguageButton(language);
+        const session = createChatSession(language);
+        currentChatId = session.id;
+        chatHistory = [];
+        rebuildChatBody(session);
+        if (shouldPersist) {
+            persistCurrentSession();
+        } else {
+            updateChatHeader();
+        }
+        closeSidebar();
+    }
 
     let userRegion = "";
 
@@ -364,11 +694,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 greetings['Malayalam'] = `നമസ്കാരം! 👋 ഞാൻ ട്രാവൽ ജീനി, നിങ്ങളുടെ AI ട്രാവൽ അസിസ്റ്റന്റ് 🧞‍♂️.${localizedSuffix['Malayalam']} മികച്ച ബജറ്റ് യാത്രകൾ കണ്ടെത്താൻ ഇന്ന് ഞാൻ നിങ്ങളെ എങ്ങനെ സഹായിക്കും? ✈️`;
                 greetings['Tamil'] = `வணக்கம்! 👋 நான் டிராவல் ஜினி, உங்கள் AI பயண உதவியாளர் 🧞‍♂️.${localizedSuffix['Tamil']} சிறந்த பட்ஜெட் பயணங்களை கண்டறிய இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்? ✈️`;
 
-                // Update UI if still on first message and English
-                if (chatHistory.length === 0 && currentChatLanguage === 'English') {
-                    const initMsg = document.getElementById('initial-greeting-msg');
-                    if (initMsg) {
-                        initMsg.innerHTML = greetings['English'];
+                if (chatHistory.length === 0 && currentChatId) {
+                    const activeSession = chatSessions.find((item) => item.id === currentChatId);
+                    if (activeSession && activeSession.messages.length > 0) {
+                        activeSession.messages[0] = { sender: 'model', text: greetings[currentChatLanguage] };
+                        rebuildChatBody(activeSession);
+                        persistCurrentSession();
                     }
                 }
 
@@ -395,6 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Push immediately if chat just started loaded
                         if (chatHistory.length === 0) {
                             updateQuickReplies(initialSuggestions['English'], true);
+                            persistCurrentSession();
                         }
                     }
                 }
@@ -409,8 +741,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const val = btn.getAttribute('data-value') || btn.textContent.trim();
 
             if (val.toLowerCase() === 'start over') {
-                chatHistory = []; // Reset memory
-                updateQuickReplies(initialSuggestions[currentChatLanguage], true);
+                startNewChat(currentChatLanguage);
+                return;
             } else if (val.startsWith('Ask in ')) {
                 // Intercept dynamic translate suggestion button
                 const targetLang = val.replace('Ask in ', '').trim();
@@ -426,8 +758,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Initialize initial quick replies
-    updateQuickReplies(initialSuggestions['English'], true);
+    chatSessions = loadChatSessions();
+    renderRecentChats();
+    if (chatSessions.length > 0) {
+        switchToSession(chatSessions[0].id);
+    } else {
+        startNewChat('English');
+    }
 
     // Hide tooltip on scroll
     window.addEventListener('scroll', () => {
@@ -488,6 +825,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 chatInput.value = valStr;
                 e.target.disabled = true; // disable after selection
                 e.target.parentElement.remove(); // Remove the date picker element from UI after selection
+                pendingDatePicker = false;
+                persistCurrentSession();
                 chatForm.dispatchEvent(new Event('submit'));
             }
         }
@@ -546,15 +885,19 @@ document.addEventListener('DOMContentLoaded', () => {
         addMessageToUI('user', message);
         chatInput.value = '';
         quickRepliesContainer.innerHTML = ''; // clear suggestions
+        activeQuickReplies = [];
+        pendingDatePicker = false;
 
         if (message.toLowerCase() === 'start over') {
-            chatHistory = [];
+            startNewChat(currentChatLanguage);
+            return;
         }
 
         chatHistory.push({
             role: "user",
             parts: [{ text: message }]
         });
+        persistCurrentSession();
 
         const typingId = showTypingIndicator();
         try {
@@ -636,12 +979,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 role: "model",
                 parts: [{ text: botMessage }] // Save original text containing tokens so AI has context
             });
+            persistCurrentSession();
 
         } catch (error) {
             console.error('API Error:', error);
             removeTypingIndicator(typingId);
             addMessageToUI('model', 'Sorry, I am having trouble connecting right now. Please check your network connection.');
             chatHistory.pop(); // Remove stuck user message
+            persistCurrentSession();
         }
     });
 
@@ -670,6 +1015,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- UI Helpers ---
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function updateQuickReplies(suggestions, isInitial = false) {
         if (quickRepliesContainer && quickRepliesContainer.parentNode) {
             quickRepliesContainer.parentNode.removeChild(quickRepliesContainer);
@@ -677,6 +1031,7 @@ document.addEventListener('DOMContentLoaded', () => {
         quickRepliesContainer = document.createElement('div');
         quickRepliesContainer.id = 'quick-replies-container';
         quickRepliesContainer.className = isInitial ? 'd-flex flex-column align-items-center gap-2 overflow-auto mt-2 w-100 ms-auto me-auto mb-3' : 'd-flex flex-wrap gap-2 mt-2 w-100 align-items-start mb-3';
+        activeQuickReplies = [...suggestions];
 
         if (isInitial) {
             quickRepliesContainer.className = 'd-flex flex-column align-items-center gap-2 overflow-visible py-2 w-100 mb-3';
@@ -751,11 +1106,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         chatBody.appendChild(quickRepliesContainer);
         scrollToBottom();
+        persistCurrentSession();
     }
 
     function addDatePickerToUI() {
         const msgWrapper = document.createElement('div');
         msgWrapper.className = 'chat-message bot mb-3 d-flex align-items-start gap-2 date-picker-wrapper';
+        pendingDatePicker = true;
 
         const today = new Date().toISOString().split('T')[0];
 
@@ -771,6 +1128,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         chatBody.appendChild(msgWrapper);
         scrollToBottom();
+        persistCurrentSession();
     }
 
     function addMessageToUI(sender, text) {
@@ -817,7 +1175,10 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         chatBody.appendChild(msgWrapper);
+        renderedMessages.push({ sender, text });
         scrollToBottom();
+        updateChatHeader();
+        persistCurrentSession();
     }
 
     function showTypingIndicator() {
@@ -901,11 +1262,12 @@ document.addEventListener('DOMContentLoaded', () => {
             greetings['Tamil'] = `வணக்கம்! 👋 நான் டிராவல் ஜினி, உங்கள் AI பயண உதவியாளர் 🧞‍♂️.${localizedSuffix['Tamil']} சிறந்த பட்ஜெட் பயணங்களை கண்டறிய இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்? ✈️`;
         }
 
-        // Update UI if still on first message
-        if (chatHistory.length === 0) {
-            const initMsg = document.getElementById('initial-greeting-msg');
-            if (initMsg) {
-                initMsg.innerHTML = greetings[currentChatLanguage];
+        if (chatHistory.length === 0 && currentChatId) {
+            const activeSession = chatSessions.find((item) => item.id === currentChatId);
+            if (activeSession && activeSession.messages.length > 0) {
+                activeSession.messages[0] = { sender: 'model', text: greetings[currentChatLanguage] };
+                rebuildChatBody(activeSession);
+                persistCurrentSession();
             }
         }
     }
