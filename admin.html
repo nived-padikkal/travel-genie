@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Omega Travel - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 1000;
+            display: flex; justify-content: center; align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+<div id="loginOverlay" class="login-overlay">
+    <div class="card p-4 shadow" style="width: 350px;">
+        <h4 class="mb-3 text-center">Admin Login</h4>
+        <input type="text" id="username" class="form-control mb-2" placeholder="Username">
+        <input type="password" id="password" class="form-control mb-3" placeholder="Password">
+        <button class="btn btn-primary w-100" onclick="login()">Login</button>
+        <div id="loginError" class="text-danger mt-2 text-center" style="display:none;">Invalid credentials</div>
+    </div>
+</div>
+
+<div class="container py-5" id="dashboard" style="display:none;">
+    <div class="d-flex justify-content-between mb-4">
+        <h2>Packages Management</h2>
+        <button class="btn btn-success" onclick="openModal()">+ Add New Package</button>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped bg-white shadow-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Location</th>
+                    <th>Days</th>
+                    <th>Price</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="packagesBody">
+                <!-- Data loaded via JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal for Add/Edit -->
+<div class="modal fade" id="packageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Add/Edit Package</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="packageForm">
+                    <input type="hidden" id="pkgId">
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label>Name</label>
+                            <input type="text" class="form-control" id="pkgName" required>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label>Location</label>
+                            <input type="text" class="form-control" id="pkgLocation">
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label>Days</label>
+                            <input type="number" class="form-control" id="pkgDays" required>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label>Price</label>
+                            <input type="number" class="form-control" id="pkgPrice" required>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label>Type</label>
+                            <input type="text" class="form-control" id="pkgType">
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label>Best For</label>
+                            <input type="text" class="form-control" id="pkgBestFor">
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label>Season</label>
+                            <input type="text" class="form-control" id="pkgSeason">
+                        </div>
+                        <div class="col-md-12 mb-2">
+                            <label>Description</label>
+                            <textarea class="form-control" id="pkgDescription"></textarea>
+                        </div>
+                        <div class="col-md-12 mb-2">
+                            <label>Activities</label>
+                            <input type="text" class="form-control" id="pkgActivities">
+                        </div>
+                        <div class="col-md-12 mb-2">
+                            <label>Keywords</label>
+                            <input type="text" class="form-control" id="pkgKeywords">
+                        </div>
+                        <div class="col-md-12 mb-2">
+                            <label>Image URL</label>
+                            <input type="text" class="form-control" id="pkgImage">
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label>Included</label>
+                            <textarea class="form-control" id="pkgIncluded"></textarea>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label>Excluded</label>
+                            <textarea class="form-control" id="pkgExcluded"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="savePackage()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let currentAuth = '';
+    const modal = new bootstrap.Modal(document.getElementById('packageModal'));
+
+    function login() {
+        const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
+        if (u === 'admin' && p === 'admin') {
+            currentAuth = btoa(u + ':' + p);
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            loadPackages();
+        } else {
+            document.getElementById('loginError').style.display = 'block';
+        }
+    }
+
+    async function loadPackages() {
+        try {
+            const res = await fetch('/api/admin/packages', {
+                headers: { 'Authorization': 'Basic ' + currentAuth }
+            });
+            if (res.status === 401) return location.reload();
+            const pkgs = await res.json();
+            
+            const tbody = document.getElementById('packagesBody');
+            tbody.innerHTML = pkgs.map(p => `
+                <tr>
+                    <td>${p.id}</td>
+                    <td>${p.name}</td>
+                    <td>${p.location || ''}</td>
+                    <td>${p.days || 0}</td>
+                    <td>₹${p.price || 0}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info text-white" onclick='editPackage(${JSON.stringify(p).replace(/'/g, "&#39;")})'>Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deletePackage(${p.id})">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function openModal() {
+        document.getElementById('packageForm').reset();
+        document.getElementById('pkgId').value = '';
+        document.getElementById('modalTitle').innerText = 'Add Package';
+        modal.show();
+    }
+
+    function editPackage(p) {
+        document.getElementById('pkgId').value = p.id;
+        document.getElementById('pkgName').value = p.name || '';
+        document.getElementById('pkgLocation').value = p.location || '';
+        document.getElementById('pkgDays').value = p.days || '';
+        document.getElementById('pkgPrice').value = p.price || '';
+        document.getElementById('pkgType').value = p.type || '';
+        document.getElementById('pkgBestFor').value = p.best_for || '';
+        document.getElementById('pkgSeason').value = p.season || '';
+        document.getElementById('pkgDescription').value = p.description || '';
+        document.getElementById('pkgActivities').value = p.activities || '';
+        document.getElementById('pkgKeywords').value = p.keywords || '';
+        document.getElementById('pkgImage').value = p.image || '';
+        document.getElementById('pkgIncluded').value = p.included || '';
+        document.getElementById('pkgExcluded').value = p.excluded || '';
+        document.getElementById('modalTitle').innerText = 'Edit Package';
+        modal.show();
+    }
+
+    async function savePackage() {
+        const id = document.getElementById('pkgId').value;
+        const data = {
+            name: document.getElementById('pkgName').value,
+            location: document.getElementById('pkgLocation').value,
+            days: parseInt(document.getElementById('pkgDays').value) || null,
+            price: parseFloat(document.getElementById('pkgPrice').value) || null,
+            type: document.getElementById('pkgType').value,
+            best_for: document.getElementById('pkgBestFor').value,
+            season: document.getElementById('pkgSeason').value,
+            description: document.getElementById('pkgDescription').value,
+            activities: document.getElementById('pkgActivities').value,
+            keywords: document.getElementById('pkgKeywords').value,
+            image: document.getElementById('pkgImage').value,
+            included: document.getElementById('pkgIncluded').value,
+            excluded: document.getElementById('pkgExcluded').value
+        };
+        
+        const url = id ? '/api/admin/packages/' + id : '/api/admin/packages';
+        const method = id ? 'PUT' : 'POST';
+        
+        await fetch(url, {
+            method,
+            headers: { 
+                'Authorization': 'Basic ' + currentAuth,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        modal.hide();
+        loadPackages();
+    }
+
+    async function deletePackage(id) {
+        if (!confirm('Are you sure you want to delete this package?')) return;
+        await fetch('/api/admin/packages/' + id, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Basic ' + currentAuth }
+        });
+        loadPackages();
+    }
+</script>
+
+</body>
+</html>

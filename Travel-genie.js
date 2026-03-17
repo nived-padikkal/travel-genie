@@ -325,10 +325,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateComposerState(true); // Always enable composer
 
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
+        const previousUser = currentUser;
         currentUser = user;
+        
         updateAuthUI(user);
         updateUserGreeting(user);
+        
+        // Reload chat sessions after auth change
+        if (user !== previousUser) {
+            chatSessions = await loadChatSessions();
+            renderRecentChats();
+        }
     });
 
     googleAuthBtn.addEventListener('click', async () => {
@@ -483,9 +491,15 @@ document.addEventListener('DOMContentLoaded', () => {
         langCurrentTextSidebar.textContent = language;
     }
 
+    function getUserId() {
+        return currentUser ? currentUser.uid : null;
+    }
+
+
     function createChatSession(language = currentChatLanguage) {
         return {
             id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            user_id: getUserId(),
             title: 'New chat',
             language,
             history: [],
@@ -496,25 +510,36 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    function loadChatSessions() {
+    async function loadChatSessions() {
+        if (!getUserId()) return [];
         try {
-            const saved = JSON.parse(localStorage.getItem(CHAT_STORAGE_KEY) || '[]');
-            if (!Array.isArray(saved)) {
-                return [];
+            const res = await fetch('http://192.168.180.244:8000/api/chat/history?user_id=' + getUserId());
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    // Map database columns to camelCase expected by frontend if needed
+                    return data.map(d => ({
+                        id: d.id,
+                        user_id: d.user_id,
+                        title: d.title,
+                        language: d.language,
+                        history: d.history,
+                        messages: d.messages,
+                        quickReplies: d.quick_replies,
+                        pendingDatePicker: d.pending_date_picker,
+                        updatedAt: d.updated_at
+                    }));
+                }
             }
-            return saved.filter((item) => item && item.id && Array.isArray(item.messages)).slice(0, MAX_SAVED_CHATS);
+            return [];
         } catch (error) {
             console.error('Failed to load saved chats:', error);
             return [];
         }
     }
 
-    function saveChatSessions() {
-        try {
-            localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatSessions.slice(0, MAX_SAVED_CHATS)));
-        } catch (error) {
-            console.error('Failed to save chats:', error);
-        }
+    async function saveChatSessions() {
+        // Obsolete as we save individually, but kept for compatibility
     }
 
     function hideRecentChatActions() {
@@ -530,7 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
         longPressTargetChatId = null;
     }
 
-    function removeChatSession(sessionId) {
+    async function removeChatSession(sessionId) {
         const nextSessions = chatSessions.filter((item) => item.id !== sessionId);
         if (nextSessions.length === chatSessions.length) {
             return;
@@ -539,8 +564,9 @@ document.addEventListener('DOMContentLoaded', () => {
         chatSessions = nextSessions;
         deleteRevealChatId = null;
 
+        await fetch('http://192.168.180.244:8000/api/chat/history/' + sessionId, { method: 'DELETE' });
+
         if (currentChatId === sessionId) {
-            saveChatSessions();
             renderRecentChats();
             if (chatSessions.length > 0) {
                 switchToSession(chatSessions[0].id);
@@ -550,15 +576,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        saveChatSessions();
         renderRecentChats();
     }
 
-    function clearAllChatsAndReset() {
+    async function clearAllChatsAndReset() {
         chatSessions = [];
         currentChatId = null;
         deleteRevealChatId = null;
-        saveChatSessions();
+        if (getUserId()) {
+            await fetch('http://192.168.180.244:8000/api/chat/history?user_id=' + getUserId(), { method: 'DELETE' });
+        }
         renderRecentChats();
         startNewChat(currentChatLanguage, false);
     }
@@ -587,8 +614,8 @@ document.addEventListener('DOMContentLoaded', () => {
         `).join('');
     }
 
-    function persistCurrentSession() {
-        if (isRestoringChat || !currentChatId) {
+    async function persistCurrentSession() {
+        if (isRestoringChat || !currentChatId || !getUserId()) {
             return;
         }
 
@@ -598,6 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const nextSession = {
             ...previous,
             id: currentChatId,
+            user_id: getUserId(),
             title: firstUserMessage ? createChatTitleFromMessage(firstUserMessage.text) : (previous.title || 'New chat'),
             language: currentChatLanguage,
             history: chatHistory,
@@ -612,7 +640,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         chatSessions.unshift(nextSession);
         chatSessions = chatSessions.slice(0, MAX_SAVED_CHATS);
-        saveChatSessions();
+        
+        await fetch('http://192.168.180.244:8000/api/chat/history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(nextSession)
+        });
+
         updateChatHeader();
         renderRecentChats();
     }
@@ -758,13 +792,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    chatSessions = loadChatSessions();
-    renderRecentChats();
-    if (chatSessions.length > 0) {
-        switchToSession(chatSessions[0].id);
-    } else {
-        startNewChat('English');
+    async function initChats() {
+        chatSessions = await loadChatSessions();
+        renderRecentChats();
+        if (chatSessions.length > 0) {
+            switchToSession(chatSessions[0].id);
+        } else {
+            startNewChat('English');
+        }
     }
+    
+    initChats();
 
     // Hide tooltip on scroll
     window.addEventListener('scroll', () => {
