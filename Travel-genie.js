@@ -946,18 +946,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Extract suggestions
             const suggestions = [];
-            const suggestionRegex = /\[\[SUGGESTION:\s*(.*?)\]\]/gi;
+            const suggestionRegex = /\[\[SUGGESTION:\s*(.*?)(?:\]\]|\n|$)/gi;
             let match;
             while ((match = suggestionRegex.exec(botMessage)) !== null) {
-                suggestions.push(match[1]);
+                if (match[1].trim()) {
+                    suggestions.push(match[1].trim());
+                }
             }
 
             // Extract date picker boolean
-            const needsDatePicker = botMessage.includes('[[DATE_PICKER]]');
+            const needsDatePicker = botMessage.includes('[[DATE_PICKER]]') || botMessage.includes('[[DATE_PICKER');
 
             // Extract packages
             const packages = [];
-            const packageRegex = /\[\[PACKAGE:\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\]\]/gi;
+            const packageRegex = /\[\[PACKAGE:\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*(.*?)\]\]/gi;
             let pkgMatch;
             while ((pkgMatch = packageRegex.exec(botMessage)) !== null) {
                 packages.push({
@@ -971,9 +973,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Strip suggestions, date picker and packages from displayed text
             let displayMessage = botMessage
-                .replace(/\[\[SUGGESTION:\s*(.*?)\]\]/gi, '')
-                .replace(/\[\[DATE_PICKER\]\]/gi, '')
-                .replace(/\[\[PACKAGE:\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\]\]/gi, '')
+                .replace(/\[\[SUGGESTION:.*?(\]\]|\n|$)/gi, '')
+                .replace(/\[\[DATE_PICKER.*?(\]\]|\n|$)/gi, '')
+                .replace(/\[\[PACKAGE:.*?\]\]/gi, '')
+                .replace(/\[\[PACKAGE:\s*\d+\s*/gi, '') // aggressive fallback for unmatched packages
                 .trim();
 
             if (packages.length > 0) {
@@ -997,7 +1000,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         '</div></div>';
                 });
                 packageHtml += '</div>';
-                displayMessage += packageHtml;
+                displayMessage += '\n\n' + packageHtml + '\n\n';
             }
 
             addMessageToUI('model', displayMessage);

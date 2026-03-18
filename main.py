@@ -252,7 +252,7 @@ async def chat_proxy(request: ChatRequest):
                     return f"[[PACKAGE: {pkg_id} | {p['name']} | {p['days']} | {p['price']} | {p['image']}]]"
                 return match.group(0)
                 
-            new_text = re.sub(r'\[\[PACKAGE:\s*(\d+)\s*\]\]', replace_pkg, text)
+            new_text = re.sub(r'\[\[PACKAGE:\s*(\d+)(?:\s*\]\])?', replace_pkg, text)
             data["candidates"][0]["content"]["parts"][0]["text"] = new_text
         except Exception:
             pass # ignore failure and pass original data through
