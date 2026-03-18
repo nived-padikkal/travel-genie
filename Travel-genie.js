@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebarOverlay.classList.add('show');
         chatbotSidebar.classList.add('open');
     }
-    
+
     function closeSidebar() {
         sidebarOverlay.classList.remove('show');
         chatbotSidebar.classList.remove('open');
@@ -328,10 +328,10 @@ document.addEventListener('DOMContentLoaded', () => {
     onAuthStateChanged(auth, async (user) => {
         const previousUser = currentUser;
         currentUser = user;
-        
+
         updateAuthUI(user);
         updateUserGreeting(user);
-        
+
         // Reload chat sessions after auth change
         if (user !== previousUser) {
             chatSessions = await loadChatSessions();
@@ -513,7 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadChatSessions() {
         if (!getUserId()) return [];
         try {
-            const res = await fetch('http://192.168.180.244:8000/api/chat/history?user_id=' + getUserId());
+            const res = await fetch('http://localhost:8000/api/chat/history?user_id=' + getUserId());
             if (res.ok) {
                 const data = await res.json();
                 if (Array.isArray(data)) {
@@ -564,7 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chatSessions = nextSessions;
         deleteRevealChatId = null;
 
-        await fetch('http://192.168.180.244:8000/api/chat/history/' + sessionId, { method: 'DELETE' });
+        await fetch('http://localhost:8000/api/chat/history/' + sessionId, { method: 'DELETE' });
 
         if (currentChatId === sessionId) {
             renderRecentChats();
@@ -584,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentChatId = null;
         deleteRevealChatId = null;
         if (getUserId()) {
-            await fetch('http://192.168.180.244:8000/api/chat/history?user_id=' + getUserId(), { method: 'DELETE' });
+            await fetch('http://localhost:8000/api/chat/history?user_id=' + getUserId(), { method: 'DELETE' });
         }
         renderRecentChats();
         startNewChat(currentChatLanguage, false);
@@ -640,8 +640,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         chatSessions.unshift(nextSession);
         chatSessions = chatSessions.slice(0, MAX_SAVED_CHATS);
-        
-        await fetch('http://192.168.180.244:8000/api/chat/history', {
+
+        await fetch('http://localhost:8000/api/chat/history', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(nextSession)
@@ -801,7 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
             startNewChat('English');
         }
     }
-    
+
     initChats();
 
     // Hide tooltip on scroll
@@ -986,7 +986,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Basic format back to number with commas if valid
                     let parsedPrice = parseInt(formattedPrice, 10);
                     let finalPrice = isNaN(parsedPrice) ? pkg.price : parsedPrice.toLocaleString('en-IN');
-                
+
                     packageHtml += '<div class="card shadow border-0 overflow-hidden flex-shrink-0 position-relative transition-hover" style="width: 250px; border-radius: 16px; background: #fff;">' +
                         '<div class="position-absolute top-0 end-0 m-2 px-2 py-1 bg-white rounded-pill shadow-sm small fw-bold text-success" style="z-index: 2; font-size: 0.75rem;"><span class="material-icons align-middle text-warning" style="font-size: 14px;">star</span> 4.8</div>' +
                         '<div style="height: 160px; overflow: hidden;"><img src="' + pkg.image + '" class="card-img-top w-100 h-100" alt="' + pkg.name + '" style="object-fit: cover; transition: transform 0.3s ease;"></div>' +
@@ -1032,7 +1032,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function fetchGeminiResponse() {
-        const API_URL = `http://192.168.180.244:8000/api/chat`;
+        const API_URL = `http://localhost:8000/api/chat`;
 
         const requestBody = {
             contents: chatHistory,
@@ -1104,7 +1104,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="material-icons text-secondary position-relative arrow-icon" style="font-size: 18px; transition: color 0.3s ease;">east</span>
                     </div>
                 `;
-                
+
                 // Add explicit hover event listeners because inline stylesheet scopes can be messy in injected HTML
                 btn.addEventListener('mouseenter', () => {
                     btn.style.transform = 'translateY(-3px)';
@@ -1271,7 +1271,7 @@ document.addEventListener('DOMContentLoaded', () => {
             authBtnText.textContent = 'Logout';
             authBtnIcon.textContent = 'logout';
             googleAuthBtn.classList.replace('btn-outline-primary', 'btn-outline-danger');
-            
+
         } else {
             authStatusChip.textContent = 'Guest';
             authStatusChip.classList.add('text-muted');
